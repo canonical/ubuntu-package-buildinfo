@@ -12,7 +12,7 @@ To install Ubuntu Package Buildlog Info, run this command in your terminal:
 
 .. code-block:: console
 
-    $ pip install ubuntu_package_buildlog_info
+    $ pip install ubuntu-package-buildinfo
 
 This is the preferred method to install Ubuntu Package Buildlog Info, as it will always install the most recent stable release.
 
@@ -32,13 +32,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/philroche/ubuntu_package_buildlog_info
+    $ git clone git://github.com/philroche/ubuntu-package-buildinfo
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/philroche/ubuntu_package_buildlog_info/tarball/master
+    $ curl -OJL https://github.com/philroche/ubuntu-package-buildinfo/tarball/master
 
 Once you have a copy of the source, you can install it with:
 
@@ -47,5 +47,5 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/philroche/ubuntu_package_buildlog_info
-.. _tarball: https://github.com/philroche/ubuntu_package_buildlog_info/tarball/master
+.. _Github repo: https://github.com/philroche/ubuntu-package-buildinfo
+.. _tarball: https://github.com/philroche/ubuntu-package-buildinfo/tarball/master

@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=ubuntu_package_buildlog_info
+set SPHINXPROJ=ubuntu-package-buildinfo
 
 if "%1" == "" goto help
 

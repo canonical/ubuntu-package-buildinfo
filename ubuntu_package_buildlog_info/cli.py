@@ -352,7 +352,7 @@ def get_buildlog_info(
     default=None,
 )
 @click.pass_context
-def ubuntu_package_buildlog_info(
+def ubuntu-package-buildinfo(
     ctx, series, package_name, package_version, logging_level, package_architecture, ppas, lp_user
 ):
     # type: (Dict, Text, Text,Text, Text, Optional[Text], Text) -> None
@@ -370,4 +370,4 @@ def ubuntu_package_buildlog_info(
 
 
 if __name__ == "__main__":
-    ubuntu_package_buildlog_info(obj={})
+    ubuntu-package-buildinfo(obj={})

@@ -1,13 +1,13 @@
 ============================
-Ubuntu Package Buildlog Info
+Ubuntu Package BuilInfo
 ============================
 
 
-.. image:: https://img.shields.io/pypi/v/ubuntu_package_buildlog_info.svg
-        :target: https://pypi.python.org/pypi/ubuntu_package_buildlog_info
+.. image:: https://img.shields.io/pypi/v/ubuntu-package-buildinfo.svg
+        :target: https://pypi.python.org/pypi/ubuntu-package-buildinfo
 
-.. image:: https://img.shields.io/travis/philroche/ubuntu_package_buildlog_info.svg
-        :target: https://travis-ci.com/philroche/ubuntu_package_buildlog_info
+.. image:: https://img.shields.io/travis/philroche/ubuntu-package-buildinfo.svg
+        :target: https://travis-ci.com/philroche/ubuntu-package-buildinfo
 
 .. image:: https://readthedocs.org/projects/ubuntu-package-buildlog-info/badge/?version=latest
         :target: https://ubuntu-package-buildlog-info.readthedocs.io/en/latest/?version=latest

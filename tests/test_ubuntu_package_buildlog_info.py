@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-"""Tests for `ubuntu_package_buildlog_info` package."""
+"""Tests for `ubuntu-package-buildinfo` package."""
 
 
 import unittest
 from click.testing import CliRunner
 
-from ubuntu_package_buildlog_info import cli
-from ubuntu_package_buildlog_info import cli
+from ubuntu-package-buildinfo import cli
+from ubuntu-package-buildinfo import cli
 
 
-class TestUbuntu_package_buildlog_info(unittest.TestCase):
-    """Tests for `ubuntu_package_buildlog_info` package."""
+class Testubuntu-package-buildinfo(unittest.TestCase):
+    """Tests for `ubuntu-package-buildinfo` package."""
 
     def setUp(self):
         """Set up test fixtures, if any."""
@@ -27,7 +27,7 @@ class TestUbuntu_package_buildlog_info(unittest.TestCase):
         runner = CliRunner()
         result = runner.invoke(cli.main)
         assert result.exit_code == 0
-        assert 'ubuntu_package_buildlog_info.cli.main' in result.output
+        assert 'ubuntu-package-buildinfo.cli.main' in result.output
         help_result = runner.invoke(cli.main, ['--help'])
         assert help_result.exit_code == 0
         assert '--help  Show this message and exit.' in help_result.output

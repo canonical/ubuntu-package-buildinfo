@@ -4,7 +4,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = python -msphinx
-SPHINXPROJ    = ubuntu_package_buildlog_info
+SPHINXPROJ    = ubuntu-package-buildinfo
 SOURCEDIR     = .
 BUILDDIR      = _build
 

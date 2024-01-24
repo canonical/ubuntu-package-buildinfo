@@ -48,9 +48,9 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 
 lint/flake8: ## check style with flake8
-	flake8 ubuntu_package_buildlog_info tests
+	flake8 ubuntu-package-buildinfo tests
 lint/black: ## check style with black
-	black --check ubuntu_package_buildlog_info tests
+	black --check ubuntu-package-buildinfo tests
 
 lint: lint/flake8 lint/black ## check style
 
@@ -61,15 +61,15 @@ test-all: ## run tests on every Python version with tox
 	tox
 
 coverage: ## check code coverage quickly with the default Python
-	coverage run --source ubuntu_package_buildlog_info setup.py test
+	coverage run --source ubuntu-package-buildinfo setup.py test
 	coverage report -m
 	coverage html
 	$(BROWSER) htmlcov/index.html
 
 docs: ## generate Sphinx HTML documentation, including API docs
-	rm -f docs/ubuntu_package_buildlog_info.rst
+	rm -f docs/ubuntu-package-buildinfo.rst
 	rm -f docs/modules.rst
-	sphinx-apidoc -o docs/ ubuntu_package_buildlog_info
+	sphinx-apidoc -o docs/ ubuntu-package-buildinfo
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
 	$(BROWSER) docs/_build/html/index.html
