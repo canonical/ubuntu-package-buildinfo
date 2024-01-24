@@ -43,7 +43,7 @@ setup(
     packages=find_packages(include=['ubuntu-package-buildinfo', 'ubuntu-package-buildinfo.*']),
     test_suite='tests',
     tests_require=test_requirements,
-    url='https://github.com/philroche/ubuntu-package-buildinfo',
+    url='https://github.com/canonical/ubuntu-package-buildinfo',
     version='0.0.1',
     zip_safe=False,
 )

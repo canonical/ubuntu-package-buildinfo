@@ -6,8 +6,8 @@ Ubuntu Package BuilInfo
 .. image:: https://img.shields.io/pypi/v/ubuntu-package-buildinfo.svg
         :target: https://pypi.python.org/pypi/ubuntu-package-buildinfo
 
-.. image:: https://img.shields.io/travis/philroche/ubuntu-package-buildinfo.svg
-        :target: https://travis-ci.com/philroche/ubuntu-package-buildinfo
+.. image:: https://img.shields.io/travis/canonical/ubuntu-package-buildinfo.svg
+        :target: https://travis-ci.com/canonical/ubuntu-package-buildinfo
 
 .. image:: https://readthedocs.org/projects/ubuntu-package-buildlog-info/badge/?version=latest
         :target: https://ubuntu-package-buildlog-info.readthedocs.io/en/latest/?version=latest
