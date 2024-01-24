@@ -43,7 +43,7 @@ def _get_published_sources(archive, version, source_package_name, lp_series, poc
     return sources
 
 
-def get_buildlog_info(
+def get_buildinfo(
     package_series, package_name, package_version, package_architecture="amd64", ppas=[], lp_user=None
 ):
     """
@@ -352,7 +352,7 @@ def get_buildlog_info(
     default=None,
 )
 @click.pass_context
-def ubuntu-package-buildinfo(
+def ubuntu_package_buildinfo(
     ctx, series, package_name, package_version, logging_level, package_architecture, ppas, lp_user
 ):
     # type: (Dict, Text, Text,Text, Text, Optional[Text], Text) -> None
@@ -366,8 +366,8 @@ def ubuntu-package-buildinfo(
     level = logging.getLevelName(logging_level)
     logging.basicConfig(level=level, stream=sys.stderr, format="%(asctime)s [%(levelname)s] %(message)s")
 
-    get_buildlog_info(series, package_name, package_version, package_architecture, list(ppas), lp_user)
+    get_buildinfo(series, package_name, package_version, package_architecture, list(ppas), lp_user)
 
 
 if __name__ == "__main__":
-    ubuntu-package-buildinfo(obj={})
+    ubuntu_package_buildinfo(obj={})

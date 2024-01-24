@@ -1,4 +1,4 @@
-"""Top-level package for Ubuntu Package Buildlog Info."""
+"""Top-level package for Ubuntu Package BuildInfo."""
 
 __author__ = """Phil Roche"""
 __email__ = 'phil.roche@canonical.com'

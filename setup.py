@@ -28,10 +28,10 @@ setup(
         'Programming Language :: Python :: 3.7',
         'Programming Language :: Python :: 3.8',
     ],
-    description="Tool to retrieve Ubuntu package buildlog info",
+    description="Tool to retrieve Ubuntu Package Buildinfo",
     entry_points={
         'console_scripts': [
-            'ubuntu-package-buildlog-info=ubuntu-package-buildinfo.cli:ubuntu-package-buildinfo',
+            'ubuntu-package-buildinfo=ubuntu_package_buildinfo.cli:ubuntu_package_buildinfo',
         ],
     },
     install_requires=requirements,
@@ -40,7 +40,7 @@ setup(
     include_package_data=True,
     keywords='ubuntu-package-buildinfo',
     name='ubuntu-package-buildinfo',
-    packages=find_packages(include=['ubuntu-package-buildinfo', 'ubuntu-package-buildinfo.*']),
+    packages=find_packages(include=['ubuntu_package_buildinfo', 'ubuntu_package_buildinfo.*']),
     test_suite='tests',
     tests_require=test_requirements,
     url='https://github.com/canonical/ubuntu-package-buildinfo',

@@ -16,7 +16,7 @@ Ubuntu Package BuilInfo
 
 
 
-Tool to retrieve Ubuntu package buildlog info
+Tool to retrieve Ubuntu Package Buildinfo
 
 Ubuntu package builds currently do not publish a buildinfo file. However, the buildlog file contains
 the contents buildinfo file. This script downloads the buildlog file, extracts the buildinfo file and verifies

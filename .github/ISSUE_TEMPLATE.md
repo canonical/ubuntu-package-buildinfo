@@ -1,4 +1,4 @@
-* Ubuntu Package Buildlog Info version:
+* Ubuntu Package Buildinfo version:
 * Python version:
 * Operating System:
 

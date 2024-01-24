@@ -1,4 +1,4 @@
-Welcome to Ubuntu Package Buildlog Info's documentation!
+Welcome to Ubuntu Package Buildinfo's documentation!
 ======================================
 
 .. toctree::

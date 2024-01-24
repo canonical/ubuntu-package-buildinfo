@@ -38,8 +38,8 @@ and "help wanted" is open to whoever wants to implement it.
 Write Documentation
 ~~~~~~~~~~~~~~~~~~~
 
-Ubuntu Package Buildlog Info could always use more documentation, whether as part of the
-official Ubuntu Package Buildlog Info docs, in docstrings, or even on the web in blog posts,
+Ubuntu Package Buildinfo could always use more documentation, whether as part of the
+official Ubuntu Package Buildinfo docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
 Submit Feedback

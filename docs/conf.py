@@ -46,7 +46,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = 'Ubuntu Package Buildlog Info'
+project = 'Ubuntu Package Buildinfo'
 copyright = "2023, Phil Roche"
 author = "Phil Roche"
 
@@ -128,7 +128,7 @@ latex_elements = {
 # [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'ubuntu-package-buildinfo.tex',
-     'Ubuntu Package Buildlog Info Documentation',
+     'Ubuntu Package Buildinfo Documentation',
      'Phil Roche', 'manual'),
 ]
 
@@ -139,7 +139,7 @@ latex_documents = [
 # (source start file, name, description, authors, manual section).
 man_pages = [
     (master_doc, 'ubuntu-package-buildinfo',
-     'Ubuntu Package Buildlog Info Documentation',
+     'Ubuntu Package Buildinfo Documentation',
      [author], 1)
 ]
 
@@ -151,7 +151,7 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'ubuntu-package-buildinfo',
-     'Ubuntu Package Buildlog Info Documentation',
+     'Ubuntu Package Buildinfo Documentation',
      author,
      'ubuntu-package-buildinfo',
      'One line description of project.',

@@ -2,6 +2,6 @@
 Usage
 =====
 
-To use Ubuntu Package Buildlog Info in a project::
+To use Ubuntu Package Buildinfo in a project::
 
     import ubuntu-package-buildinfo
