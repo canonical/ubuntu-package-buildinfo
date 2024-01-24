@@ -74,7 +74,7 @@ def get_buildinfo(
         # Log in to launchpad annonymously - we use launchpad to find
         # the package publish time
         launchpad = Launchpad.login_anonymously(
-            "ubuntu-package-buildlog-info", service_root=service_roots["production"], version="devel"
+            "ubuntu-package-buildinfo", service_root=service_roots["production"], version="devel"
         )
 
     ubuntu = launchpad.distributions["ubuntu"]
