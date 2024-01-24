@@ -12,8 +12,8 @@ import urllib.parse
 from launchpadlib.launchpad import Launchpad
 from launchpadlib.uris import service_roots
 
-# Which archive pockets are checked
-ARCHIVE_POCKETS = ["Release", "Security", "Updates", "Proposed"]
+# Which archive pockets are checked in order of where a recent package is most likely to be published
+ARCHIVE_POCKETS = ["Updates", "Security", "Release", "Proposed"]
 faulthandler.enable()
 
 
