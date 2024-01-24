@@ -18,14 +18,11 @@ Ubuntu Package BuilInfo
 
 Tool to retrieve Ubuntu Package Buildinfo
 
-Ubuntu package builds currently do not publish a buildinfo file. However, the buildlog file contains
-the contents buildinfo file. This script downloads the buildlog file, extracts the buildinfo file and verifies
+This script downloads the changes file, the buildlog file and the buildinfo file and verifies
 that the buildinfo file is correct based on the checksum in the .changes file.
 
 See https://wiki.debian.org/ReproducibleBuilds/BuildinfoFiles for more information on buildinfo files.
 
-Launchpad.net bug https://bugs.launchpad.net/launchpad/+bug/2044140 is to track the progress of publishing buildinfo
-files.
 
 * Free software: GNU General Public License v3
 * Documentation: https://ubuntu-package-buildlog-info.readthedocs.io.
@@ -35,14 +32,14 @@ Example Usage
 
 ::
 
-    ubuntu-package-buildlog-info --series jammy --package-version 3.0.4-2ubuntu2.2 --package-name apparmor
+    ubuntu-package-buildinfo --series jammy --package-version 3.0.4-2ubuntu2.2 --package-name apparmor
 
 
 Features
 --------
 
-Downloads the buildlog, changes files and changelog for a package version in a series and extracts the buildinfo
-from the buildlog file.
+Downloads the changes file, the buildlog file and the buildinfo file for a given package and version in a given
+Ubuntu series.
 
 It also verifies that the buildinfo file is correct based on the checksum in the .changes file.
 
