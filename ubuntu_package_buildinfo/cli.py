@@ -47,27 +47,20 @@ def get_buildinfo(
     package_series, package_name, package_version, package_architecture="amd64", ppas=[], lp_user=None
 ):
     """
-    Get buildlog info for a package in the Ubuntu archive.
+    Get buildlinfo for a package in the Ubuntu archive.
 
-    Ubuntu package builds currently do not publish a buildinfo file. However, the buildlog file contains
-    the contents buildinfo file. This script downloads the buildlog file, extracts the buildinfo file and verifies
-    that the buildinfo file is correct based on the checksum in the .changes file.
-
-    Downloads the buildlog, changes files and changelog for a package version in a series and extracts
-    the buildinfofile from the buildlog file.
+    Downloads the buildlog, buildinfo, changes files and changelog for a package version in a series.
 
     It also verifies that the buildinfo file is correct based on the checksum in the .changes file.
 
-    * First we query the Ubuntu archive for the source package version in the specified series and pocket.
-    * If the source package version is not found we query the archive for the binary package version in
-      the specified series and pocket.
-    * If the binary package version is found we get the source package name from the binary package and
-        query the archive for the source package version in the specified series and pocket.
-    * If the source package version is found we download the buildlog, changes file and changelog for the
-        source package version in the specified series and pocket.
-    * We then extract the buildinfo file from the buildlog file.
+    * First we query the Ubuntu archive for the binary package version in the specified series and pocket.
+    * If the binary package version is found we download the buildlog, changes file and buildinfo file for the
+        binary package version in the specified series and pocket.
     * We then verify that the buildinfo file is correct based on the checksum in the .changes file.
     """
+    if ":" in package_name:
+        # strip the architecture from the package name if it is present
+        package_name = package_name.split(":")[0]
     if lp_user:
         launchpad = Launchpad.login_with(lp_user, service_root=service_roots["production"], version="devel")
     else:
@@ -78,7 +71,7 @@ def get_buildinfo(
         )
 
     ubuntu = launchpad.distributions["ubuntu"]
-    source_package_found = False
+    build_found = False
     for pocket in ARCHIVE_POCKETS:
 
         # TODO add support for PPAs
@@ -95,203 +88,95 @@ def get_buildinfo(
         lp_arch_series = lp_series.getDistroArchSeries(archtag=package_architecture)
 
         for package_publication_status in ["Published", "Superseded"]:
-            sources = _get_published_sources(
-                archive, package_version, package_name, lp_series, pocket, status=package_publication_status
+            # attempt to find a binary package build of this name first
+            binaries = _get_binary_packages(
+                archive, package_version, package_name, lp_arch_series, pocket, status=package_publication_status
             )
-            if len(sources) == 0:
+
+            if len(binaries):
                 print(
-                    f"INFO: No {package_publication_status} sources found for {package_name} version {package_version} in {package_series} {pocket}"
+                    f"INFO: \tFound binary package "
+                    f"{package_name} {package_architecture} version {package_version} with {package_publication_status} status in {package_series} {pocket}."
                 )
-                print("INFO: \tTrying to find a binary package with that name ...")
-                # unable to find published sources for source package package_name.
-                # Perhaps this is a binary package name so we can
-                # do a lookup to see if there exists a source package for
-                # package_name binary package.
-                binaries = _get_binary_packages(
-                    archive, package_version, package_name, lp_arch_series, pocket, status=package_publication_status
-                )
-                if len(binaries):
-                    # there were published binaries with this name.
-                    # now get the source package name so we can get the changelog
-                    for binary in binaries:
-                        source_package_name = binary.source_package_name
-                        sources = _get_published_sources(
-                            archive,
-                            package_version,
-                            source_package_name,
-                            lp_series,
-                            pocket,
-                            status=package_publication_status,
-                        )
-                        if len(sources) > 0:
-                            print(
-                                f"INFO: \tFound source package {source_package_name} for binary package "
-                                f"{package_name} version {package_version} with {package_publication_status} sources."
-                            )
-                            source_package_found = True
-                            break
-                else:
+                binary_build_link = binaries[0].build_link
+                binary_build = launchpad.load(binary_build_link)
+                build_found = True
+                changesfile_url = binary_build.changesfile_url
+                buildinfo_url = binary_build.buildinfo_url
+                buildinfo_remote_filename = buildinfo_url.split("/")[-1]
+                buildlog_url = binary_build.build_log_url
+                changesfile_resp = launchpad._browser.get(changesfile_url).decode("utf-8", errors="ignore")
+                buildinfo_resp = launchpad._browser.get(buildinfo_url).decode("utf-8", errors="ignore")
+                buildlog_resp = launchpad._browser.get(buildlog_url).decode("utf-8", errors="ignore")
+
+                # write the changes to file named
+                # {package_name}_{package_version}_{package_architecture}_{package_series}.changes
+                changes_filename = f"{package_name}_{package_version}_{package_architecture}_{package_series}.changes"
+                with open(
+                    changes_filename, "w"
+                ) as f:
+                    f.write(changesfile_resp)
                     print(
-                        f"INFO: \tNo {package_publication_status} binaries found for {package_name} version {package_version} in {package_series} {pocket}\n\n"
+                        f"INFO: \tchanges written to "
+                        f"{changes_filename}"
                     )
+
+                # write the build info to file named
+                # {package_name}_{package_version}_{package_architecture}_{package_series}.buildinfo
+                buildinfo_filename = f"{package_name}_{package_version}_{package_architecture}_{package_series}.buildinfo"
+                with open(
+                    buildinfo_filename, "w"
+                ) as f:
+                    f.write(buildinfo_resp)
+                    print(
+                        f"INFO: \tbuildinfo written to "
+                        f"{buildinfo_filename}"
+                    )
+
+                # write the build log to file named
+                # {package_name}_{package_version}_{package_architecture}_{package_series}.buildlog
+                buildlog_filename = f"{package_name}_{package_version}_{package_architecture}_{package_series}.buildlog"
+                with open(
+                    buildlog_filename, "w"
+                ) as f:
+                    f.write(buildlog_resp)
+                    print(
+                        f"INFO: \tbuildlog written to "
+                        f"{buildlog_filename}"
+                    )
+
+                # find the hashes of buildinfo_filename in the changesfile_resp and verify that they match hash
+                # of the buildinfo_filename file already written to disk
+                sha256_checksums_found = False
+                for changesfile_line in changesfile_resp.splitlines():
+                    if "Checksums-Sha256:" in changesfile_line:
+                        sha256_checksums_found = True
+                    if sha256_checksums_found and buildinfo_remote_filename in changesfile_line:
+                        # get the hash from the changesfile_line
+                        changesfile_buildinfo_hash = changesfile_line.split()[0]
+                        # get the hash of the buildinfo content and compare it to the hash in the changes file
+                        sha256hash = hashlib.sha256(buildinfo_resp.encode("UTF-8")).hexdigest()
+                        if changesfile_buildinfo_hash == sha256hash:
+                            print(f"INFO: \tHash of {buildinfo_remote_filename} matches hash in changes file.")
+                        else:
+                            print(f"**********ERROR: \tHash of {buildinfo_remote_filename} does not match hash in changes file.")
+                        # we have found the hash of the buildinfo_filename in the changes file so we can stop
+                        # iterating over the changesfile lines
+                        break
             else:
                 print(
-                    f"INFO: \tFound source package "
-                    f"{package_name} version {package_version} in {pocket} pocket with {package_publication_status} sources."
+                    f"INFO: \tNo {package_publication_status} binaries found for {package_name}  {package_architecture} version {package_version} in {package_series} {pocket}"
                 )
-                source_package_found = True
-                # we have found the source package, so we can stop iterating over the publication statuses
+            if build_found:
+                # if we have found the binary package we can stop iterating over the publication statuses
                 break
-        if source_package_found:
+        if build_found:
             # if we have found the source package we can stop iterating over the pockets
             break
-
-    # We now have a source package we can start querying for the buildlog, changes file and changelog
-    if len(sources) == 1:
-        builds = sources[0].getBuilds()
-        if len(builds) > 1:
-            # we need to find the build for the correct architecture
-            architecture_build_found = False
-            for build in builds:
-                if build.arch_tag == package_architecture:
-                    architecture_build_found = True
-                    source_package_name = build.source_package_name
-                    source_package_version = build.source_package_version
-                    source_package_arch_tag = build.arch_tag
-
-                    # Download the changelog file for this build
-                    changelog_url = sources[0].changelogUrl()
-                    url = launchpad._root_uri.append(urllib.parse.urlparse(changelog_url).path.lstrip("/"))
-                    changelog_resp = launchpad._browser.get(url).decode("utf-8")
-                    # write changelog_resp to file named
-                    # {source_package_name}_{source_package_version}_{source_package_arch_tag}.changelog
-                    with open(
-                        f"{source_package_name}_{source_package_version}_{source_package_arch_tag}.changelog", "w"
-                    ) as f:
-                        f.write(changelog_resp)
-                        print(
-                            f"INFO: \tchangelog file writen to "
-                            f"{source_package_name}_{source_package_version}_{source_package_arch_tag}.changelog"
-                        )
-
-                    # Download the build log for this build
-                    buildlog_url = build.build_log_url
-                    url = launchpad._root_uri.append(urllib.parse.urlparse(buildlog_url).path.lstrip("/"))
-                    buildlog_resp = launchpad._browser.get(url).decode("utf-8")
-
-                    # The build log contains <<PKGBUILDDIR>> which is a placeholder for the actual path to the
-                    # build directory. We need to replace <<PKGBUILDDIR>> with the actual path to the build
-                    # directory so that we can extract an accurate buildinfo file from the buildlog file.
-                    # Find line with <<PKGBUILDDIR>> in buildlog_resp and set as pkg_builddir variable
-                    pkg_builddir = ""
-                    for buildlog_line in buildlog_resp.splitlines():
-                        if (
-                            "I: NOTICE: Log filtering will replace" in buildlog_line
-                            and "with '<<PKGBUILDDIR>>'" in buildlog_line
-                        ):
-                            # use regex to extract a directory path from the line eg 'build/apparmor-BXxSs1/apparmor-3.0.4'
-                            pkg_builddir_regex = re.compile(r"'build/.*' ")
-                            pkg_builddir = pkg_builddir_regex.search(buildlog_line).group(0).replace("'", "")
-                            # trim all whitepace from pkg_builddir
-                            pkg_builddir = pkg_builddir.strip()
-                            # we have found the line with <<PKGBUILDDIR>> so we can stop iterating over the lines
-                            # in the buildlog
-                            break
-
-                    # write the build log to file named
-                    # {source_package_name}_{source_package_version}_{source_package_arch_tag}.buildlog
-                    with open(
-                        f"{source_package_name}_{source_package_version}_{source_package_arch_tag}.buildlog", "w"
-                    ) as f:
-                        f.write(buildlog_resp)
-                        print(
-                            f"INFO: \tbuildlog writen to "
-                            f"{source_package_name}_{source_package_version}_{source_package_arch_tag}.buildlog"
-                        )
-
-                    # The buildinfo file is contained between the lines
-                    # | Buildinfo                                                                    |
-                    # and
-                    # | Package contents                                                             |
-                    # in the build log.
-                    buildinfo_start = "| Buildinfo                                                                    |"
-                    buildinfo_end = "| Package contents                                                             |"
-                    buildlog_header_separator = (
-                        "+------------------------------------------------------------------------------+"
-                    )
-                    buildinfo = ""
-                    append_to_buildinfo = False
-                    for buildlog_line in buildlog_resp.splitlines():
-                        if buildinfo_start in buildlog_line:
-                            append_to_buildinfo = True
-
-                        if buildinfo_end in buildlog_line:
-                            # we have reached the end of the buildinfo section so we can stop iterating over the lines
-                            break
-                        if (
-                            append_to_buildinfo
-                            and buildlog_line != buildinfo_start
-                            and buildlog_line != buildinfo_end
-                            and buildlog_line != buildlog_header_separator
-                            and buildlog_line != ""
-                        ):
-                            buildinfo = "{}{}\n".format(buildinfo, buildlog_line)
-
-                    # replace <<PKGBUILDDIR>> in buildinfo with the actual path
-                    buildinfo = buildinfo.replace("<<PKGBUILDDIR>>", pkg_builddir)
-
-                    buildinfo_filename = (
-                        f"{source_package_name}_{source_package_version}_{source_package_arch_tag}.buildinfo"
-                    )
-                    with open(buildinfo_filename, "w") as f:
-                        f.write(buildinfo)
-                        print(
-                            f"INFO: \tbuildinfo file writen to "
-                            f"{source_package_name}_{source_package_version}_{source_package_arch_tag}.buildinfo"
-                        )
-
-                    changesfile_url = build.changesfile_url
-                    url = launchpad._root_uri.append(urllib.parse.urlparse(changesfile_url).path.lstrip("/"))
-                    changesfile_resp = launchpad._browser.get(url).decode("utf-8")
-
-                    # find the hashes of buildinfo_filename in the changesfile_resp and verify that they match hash
-                    # of the buildinfo_filename file already written to disk
-                    sha256_checksums_found = False
-                    for changesfile_line in changesfile_resp.splitlines():
-                        if "Checksums-Sha256:" in changesfile_line:
-                            sha256_checksums_found = True
-                        if sha256_checksums_found and buildinfo_filename in changesfile_line:
-                            # get the hash from the changesfile_line
-                            changesfile_buildinfo_hash = changesfile_line.split()[0]
-                            # get the hash of the buildinfo_filename file
-                            sha256hash = hashlib.sha256(buildinfo.encode("UTF-8")).hexdigest()
-
-                            if changesfile_buildinfo_hash == sha256hash:
-                                print(f"INFO: \tHash of {buildinfo_filename} matches hash in changes file.")
-                            else:
-                                print(f"INFO: \tHash of {buildinfo_filename} does not match hash in changes file.")
-                            # we have found the hash of the buildinfo_filename in the changes file so we can stop
-                            # iterating over the changesfile lines
-                            break
-
-                    # write changesfile_resp to file named
-                    # {source_package_name}_{source_package_version}_{source_package_arch_tag}.changes
-                    with open(
-                        f"{source_package_name}_{source_package_version}_{source_package_arch_tag}.changes", "w"
-                    ) as f:
-                        f.write(changesfile_resp)
-                        print(
-                            f"INFO: \tchanges file writen to {source_package_name}_{source_package_version}_{source_package_arch_tag}.changes"
-                        )
-
-                if architecture_build_found:
-                    # if we have found the build for the correct architecture we can stop iterating over the builds
-                    break
-        else:
-            print(f"Unable to find builds for package {package_name} version {package_version}")
-    else:
-        print(f"Unable to find published package {package_name} version {package_version}")
-
+    if not build_found:
+        print(
+            f"**********ERROR: \tNo Published or Superseded binaries found for {package_name} {package_architecture} version {package_version} in {package_series} any {ARCHIVE_POCKETS} pocket."
+        )
 
 @click.command()
 @click.option(
