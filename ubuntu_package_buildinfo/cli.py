@@ -43,6 +43,11 @@ def _get_published_sources(archive, version, source_package_name, lp_series, poc
     return sources
 
 
+def _write_build_artifact_to_file(filename, content, message):
+    with open(filename, 'w') as f:
+        f.write(content)
+        print(message)
+
 def get_buildinfo(
     package_series, package_name, package_version, package_architecture="amd64", ppas=[], lp_user=None
 ):
@@ -109,41 +114,18 @@ def get_buildinfo(
                 buildinfo_resp = launchpad._browser.get(buildinfo_url).decode("utf-8", errors="ignore")
                 buildlog_resp = launchpad._browser.get(buildlog_url).decode("utf-8", errors="ignore")
 
-                # write the changes to file named
-                # {package_name}_{package_version}_{package_architecture}_{package_series}.changes
+
                 changes_filename = f"{package_name}_{package_version}_{package_architecture}_{package_series}.changes"
-                with open(
-                    changes_filename, "w"
-                ) as f:
-                    f.write(changesfile_resp)
-                    print(
-                        f"INFO: \tchanges written to "
-                        f"{changes_filename}"
-                    )
+                changes_msg = f"INFO: \tchanges written to {changes_filename}"
+                _write_build_artifact_to_file(changes_filename, changesfile_resp, changes_msg)
 
-                # write the build info to file named
-                # {package_name}_{package_version}_{package_architecture}_{package_series}.buildinfo
                 buildinfo_filename = f"{package_name}_{package_version}_{package_architecture}_{package_series}.buildinfo"
-                with open(
-                    buildinfo_filename, "w"
-                ) as f:
-                    f.write(buildinfo_resp)
-                    print(
-                        f"INFO: \tbuildinfo written to "
-                        f"{buildinfo_filename}"
-                    )
+                buildinfo_msg = f"INFO: \tbuildinfo written to {buildinfo_filename}"
+                _write_build_artifact_to_file(buildinfo_filename, buildinfo_resp, buildinfo_msg)
 
-                # write the build log to file named
-                # {package_name}_{package_version}_{package_architecture}_{package_series}.buildlog
                 buildlog_filename = f"{package_name}_{package_version}_{package_architecture}_{package_series}.buildlog"
-                with open(
-                    buildlog_filename, "w"
-                ) as f:
-                    f.write(buildlog_resp)
-                    print(
-                        f"INFO: \tbuildlog written to "
-                        f"{buildlog_filename}"
-                    )
+                buildlog_msg = f"INFO: \tbuildlog written to {buildlog_filename}"
+                _write_build_artifact_to_file(buildlog_filename, buildlog_resp, buildlog_msg)
 
                 # find the hashes of buildinfo_filename in the changesfile_resp and verify that they match hash
                 # of the buildinfo_filename file already written to disk
@@ -205,12 +187,7 @@ def get_buildinfo(
 @click.option(
     "--package-architecture",
     help="The architecture to use when querying package "
-    "version in the archive. We use this in our Launchpad "
-    'query to query either "source" package or "amd64" package '
-    'version. Using "amd64" will query the version of the '
-    'binary package. "source" is a valid value for '
-    "architecture with Launchpad and will query the version of "
-    "the source package. The default is amd64. ",
+    "version in the archive. The default is amd64. ",
     required=True,
     default="amd64",
     show_default=True,
@@ -241,10 +218,6 @@ def ubuntu_package_buildinfo(
     ctx, series, package_name, package_version, logging_level, package_architecture, ppas, lp_user
 ):
     # type: (Dict, Text, Text,Text, Text, Optional[Text], Text) -> None
-    """
-    Watch specified packages in the ubuntu archive for transition between
-    archive pockets/PPAs. Useful when waiting for a package update to be published.
-    """
 
     # We log to stderr so that a shell calling this will not have logging
     # output in the $() capture.
