@@ -58,9 +58,9 @@ def get_buildinfo(
         binary package version in the specified series and pocket.
     * We then verify that the buildinfo file is correct based on the checksum in the .changes file.
     """
-    if ":" in package_name:
+    if f":{package_architecture}" in package_name:
         # strip the architecture from the package name if it is present
-        package_name = package_name.split(":")[0]
+        package_name = package_name.replace(f":{package_architecture}", "")
     if lp_user:
         launchpad = Launchpad.login_with(lp_user, service_root=service_roots["production"], version="devel")
     else:
