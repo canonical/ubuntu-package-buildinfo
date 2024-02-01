@@ -76,8 +76,9 @@ def get_buildinfo(
     lp_arch_series = lp_series.getDistroArchSeries(archtag=package_architecture)
 
     binary_package_build_found = False
+
+    # attempt to find a binary package build of this name first
     if not source_package_query:
-        # attempt to find a binary package build of this name first
         binaries = _get_binary_packages(
             archive, package_version, package_name, lp_arch_series
         )
@@ -88,49 +89,36 @@ def get_buildinfo(
                 f"INFO: \tFound binary package "
                 f"{package_name} {package_architecture} version {package_version} with in {package_series}."
             )
-            binary_build_link = binaries[0].build_link
-            binary_build = launchpad.load(binary_build_link)
-            changesfile_url = binary_build.changesfile_url
-            buildinfo_url = binary_build.buildinfo_url
 
-            buildlog_url = binary_build.build_log_url
-            download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
-                                                package_architecture, package_name, package_version)
-        else:
-            binary_package_build_found = False
-            print(
-                f"**********WARNING: \tNo binaries found for {package_name} {package_architecture} version {package_version} in {package_series} in any archive pocket."
-            )
-
-    # a source package query only has been requested or a binary package build was not found
     if source_package_query or binary_package_build_found is False:
-        # attempt to find a source package build of this name
         source_packages = _get_source_packages(archive, package_version, package_name, lp_series)
         if len(source_packages):
-            builds = source_packages[0].getBuilds()
-            if len(builds) > 1:
-                # we need to find the build for the correct architecture
-                architecture_build_found = False
-                for build in builds:
-                    if build.arch_tag == package_architecture:
-                        architecture_build_found = True
-                        print(
-                            f"INFO: \tFound source package "
-                            f"{package_name} {package_architecture} version {package_version} with in {package_series}."
-                        )
-                        changesfile_url = build.changesfile_url
-                        buildinfo_url = build.buildinfo_url
-                        buildlog_url = build.build_log_url
-                        download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
-                                                            package_architecture, package_name, package_version)
-                if not architecture_build_found:
-                    print(
-                        f"**********WARNING: \tNo source package build found for {package_name} {package_architecture} version {package_version} in {package_series} in any archive pocket."
-                    )
-        else:
-            print(
-                f"**********ERROR: \tNo source packages found for {package_name} {package_architecture} version {package_version} in {package_series} in any archive pocket."
-            )
+            source_package = source_packages[0]
+            binaries = source_package.getPublishedBinaries()
+            if len(binaries):
+                binary_package_build_found = True
+                print(
+                    f"INFO: \tFound binary package from source package "
+                    f"{package_name} {package_architecture} version {package_version} with in {package_series}."
+                )
+            else:
+                print(
+                    f"**********WARNING: \tNo binary builds found for source package {package_name} {package_architecture} version {package_version} in {package_series}."
+                )
+
+    if binary_package_build_found and len(binaries):
+        binary_build_link = binaries[0].build_link
+        binary_build = launchpad.load(binary_build_link)
+        changesfile_url = binary_build.changesfile_url
+        buildinfo_url = binary_build.buildinfo_url
+
+        buildlog_url = binary_build.build_log_url
+        download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
+                                                package_architecture, package_name, package_version)
+    else:
+        print(
+            f"**********ERROR: \tNo builds found for {package_name} {package_architecture} version {package_version} in {package_series}."
+        )
 
 
 def download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad, package_architecture,
