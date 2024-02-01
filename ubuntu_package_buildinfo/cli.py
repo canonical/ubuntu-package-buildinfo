@@ -42,9 +42,7 @@ def _write_build_artifact_to_file(filename, content, message):
 
 
 def get_buildinfo(
-    package_series, package_name, package_version, source_package_query=False, package_architecture="amd64", ppas=[],
-    lp_user=None
-):
+    package_series, package_name, package_version, source_package_query=False, package_architecture="amd64"):
     """
     Get buildlinfo for a package in the Ubuntu archive.
 
@@ -64,25 +62,14 @@ def get_buildinfo(
     if f":{package_architecture}" in package_name:
         # strip the architecture from the package name if it is present
         package_name = package_name.replace(f":{package_architecture}", "")
-    if lp_user:
-        launchpad = Launchpad.login_with(lp_user, service_root=service_roots["production"], version="devel")
-    else:
-        # Log in to launchpad annonymously - we use launchpad to find
-        # the package publish time
-        launchpad = Launchpad.login_anonymously(
-            "ubuntu-package-buildinfo", service_root=service_roots["production"], version="devel"
-        )
+    # Log in to launchpad annonymously - we use launchpad to find
+    # the package publish time
+    launchpad = Launchpad.login_anonymously(
+        "ubuntu-package-buildinfo", service_root=service_roots["production"], version="devel"
+    )
 
     ubuntu = launchpad.distributions["ubuntu"]
-    build_found = False
-    # TODO add support for PPAs
-    # if args.ppa:
-    #     ppa_owner, ppa_name = args.ppa.split('/')
-    #     archive = launchpad.people[ppa_owner].getPPAByName(name=ppa_name)
-    #     if args.pocket != 'Release':
-    #         print('using pocket "Release" when using a PPA ...')
-    #         pocket = 'Release'
-    # else:
+
     archive = ubuntu.main_archive
 
     lp_series = ubuntu.getSeries(name_or_version=package_series)
@@ -220,39 +207,17 @@ def download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile
     default="amd64",
     show_default=True,
 )
-@click.option(
-    "--ppa",
-    "ppas",
-    required=False,
-    multiple=True,
-    type=click.STRING,
-    help="Additional PPAs that you wish to query for package version status."
-    "Expected format is "
-    "ppa:'%LAUNCHPAD_USERNAME%/%PPA_NAME%' eg. ppa:philroche/cloud-init"
-    "Multiple --ppa options can be specified",
-    default=[],
-)
-@click.option(
-    "--launchpad-user",
-    "lp_user",
-    required=False,
-    type=click.STRING,
-    help="Launchpad username to use when querying PPAs. This is important id "
-    "you are querying PPAs that are not public.",
-    default=None,
-)
 @click.pass_context
 def ubuntu_package_buildinfo(
-    ctx, series, package_name, package_version, source_package, logging_level, package_architecture, ppas, lp_user
-):
-    # type: (Dict, Text, Text,Text, Bool, Text, Optional[Text], Optional[List[Text]], Text) -> None
+    ctx, series, package_name, package_version, source_package, logging_level, package_architecture):
+    # type: (Dict, Text, Text,Text, Bool, Text, Optional[Text]) -> None
 
     # We log to stderr so that a shell calling this will not have logging
     # output in the $() capture.
     level = logging.getLevelName(logging_level)
     logging.basicConfig(level=level, stream=sys.stderr, format="%(asctime)s [%(levelname)s] %(message)s")
 
-    get_buildinfo(series, package_name, package_version, source_package, package_architecture, list(ppas), lp_user)
+    get_buildinfo(series, package_name, package_version, source_package, package_architecture)
 
 
 if __name__ == "__main__":
