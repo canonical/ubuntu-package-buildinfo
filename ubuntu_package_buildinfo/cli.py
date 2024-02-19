@@ -13,23 +13,22 @@ from launchpadlib.uris import service_roots
 faulthandler.enable()
 
 
-def _get_binary_packages(archive, version, binary_package_name, lp_arch_series):
-    binaries = archive.getPublishedBinaries(
+def _get_binary_package_publishing_histories(archive, version, binary_package_name, lp_arch_series):
+    binary_publish_histories = archive.getPublishedBinaries(
         exact_match=True,
         version=version,
         binary_name=binary_package_name,
         distro_arch_series=lp_arch_series,
         order_by_date=True
     )
-    return binaries
+    return binary_publish_histories
 
 
-def _get_source_packages(archive, version, source_package_name, lp_series):
+def _get_source_package_publishing_histories(archive, version, source_package_name):
     source_packages = archive.getPublishedSources(
         exact_match=True,
         version=version,
         source_name=source_package_name,
-        distro_series=lp_series,
         order_by_date=True
     )
     return source_packages
@@ -75,49 +74,96 @@ def get_buildinfo(
     lp_series = ubuntu.getSeries(name_or_version=package_series)
     lp_arch_series = lp_series.getDistroArchSeries(archtag=package_architecture)
 
-    binary_package_build_found = False
-
+    binary_build = None
     # attempt to find a binary package build of this name first
     if not source_package_query:
-        binaries = _get_binary_packages(
+        binary_publishing_histories = _get_binary_package_publishing_histories(
             archive, package_version, package_name, lp_arch_series
         )
 
-        if len(binaries):
-            binary_package_build_found = True
+        if len(binary_publishing_histories):
+            # given the very specific filtering of the getPublishedBinaries query we should only have one result
+            binary_build_link = binary_publishing_histories[0].build_link
+            try:
+                binary_build = launchpad.load(binary_build_link)
+                print(
+                    f"INFO: \tFound binary package "
+                    f"{package_name} {package_architecture} version {package_version} in {package_series}."
+                )
+            except ValueError:
+                print(
+                    f"**********ERROR(Exception): \tCould not load binary build link {binary_build_link}."
+                )
+        else:
             print(
-                f"INFO: \tFound binary package "
-                f"{package_name} {package_architecture} version {package_version} with in {package_series}."
+                f"**********WARNING: \tNo binary builds found for binary {package_name} {package_architecture} version {package_version} in {package_series}. Searching for source package of the same name..."
             )
 
-    if source_package_query or binary_package_build_found is False:
-        source_packages = _get_source_packages(archive, package_version, package_name, lp_series)
-        if len(source_packages):
-            source_package = source_packages[0]
-            binaries = source_package.getPublishedBinaries()
-            if len(binaries):
-                binary_package_build_found = True
+    if source_package_query or binary_build is None:
+        source_package_publishing_histories = _get_source_package_publishing_histories(archive, package_version, package_name)
+        if len(source_package_publishing_histories):
+            # iterate over the source package publishing histories and find the first one with build history.
+            # This is because some package are copied from series to series without any rebuilds.
+            for source_package_publishing_history in source_package_publishing_histories:
+                source_package = source_package_publishing_history
+                source_package_builds = source_package.getBuilds()
+                if len(source_package_builds):
+                    distro_series = launchpad.load(source_package.distro_series_link)
+                    # If builds were not found in the specified series then print a message stating which series
+                    # the first source package with published builds was found in.
+                    if distro_series.name != package_series:
+                        print(
+                            f"INFO: \tFirst source package with published builds for "
+                            f"{package_name} version {package_version} found in series {distro_series.name}. This occurs when a package is copied from one series to another without any rebuilds."
+                        )
+                    break
+            source_package_builds = source_package.getBuilds()
+            # Now find the build for the specified architecture and if it is not found use the amd64 build
+            architecture_all_arch_tag = "amd64"
+            architecture_all_build = None
+            architecture_build = None
+            for source_package_build in source_package_builds:
+                if source_package_build.arch_tag == architecture_all_arch_tag:
+                    # This will be our fallback if we do not find a build for the specified architecture
+                    architecture_all_build = source_package_build
+                if source_package_build.arch_tag == package_architecture:
+                    architecture_build = source_package_build
+                    # if we have found a build for the specified architecture then we can break
+                    break
+
+            if architecture_build is None and architecture_all_build is not None:
+                architecture_build = architecture_all_build
+                print(f"INFO: \tNo build found for architecture {package_architecture} using {architecture_all_arch_tag} instead. This will occur if there is no build for the specified architecture and the amd64 architecture build is used instead. - when `Architecture: all` is used for example")
+
+            if architecture_build is not None:
+                binary_build = architecture_build
                 print(
-                    f"INFO: \tFound binary package from source package "
-                    f"{package_name} {package_architecture} version {package_version} with in {package_series}."
+                    f"INFO: \tFound binary build from source package "
+                    f"{package_name} {package_architecture} version {package_version} in {package_series}."
                 )
             else:
                 print(
                     f"**********WARNING: \tNo binary builds found for source package {package_name} {package_architecture} version {package_version} in {package_series}."
                 )
 
-    if binary_package_build_found and len(binaries):
-        binary_build_link = binaries[0].build_link
-        binary_build = launchpad.load(binary_build_link)
+    if binary_build:
+        binary_build_architecture = binary_build.arch_tag
+        if binary_build_architecture != package_architecture:
+            print(
+                f"INFO: \tThis binary build was an {binary_build_architecture} architecture build which differs from {package_architecture} specified. This is expected and is usually due to `Architecture: all` in the debian/control file."
+            )
         changesfile_url = binary_build.changesfile_url
-        buildinfo_url = binary_build.buildinfo_url
-
         buildlog_url = binary_build.build_log_url
-        download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
-                                                package_architecture, package_name, package_version)
+        buildinfo_url = binary_build.buildinfo_url
+        if buildinfo_url is None:
+            print(f"**********ERROR: \tNo buildinfo found for {package_name} {package_architecture} version {package_version} in {package_series}. See {binary_build_link} for more details. Source package {binary_build.source_package_name} version {binary_build.source_package_version}.")
+        else:
+            pass
+            download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
+                                                binary_build_architecture, package_name, package_version)
     else:
         print(
-            f"**********ERROR: \tNo builds found for {package_name} {package_architecture} version {package_version} in {package_series}."
+            f"**********ERROR: \tNo binary builds found for {package_name} {package_architecture} version {package_version} in {package_series}."
         )
 
 
