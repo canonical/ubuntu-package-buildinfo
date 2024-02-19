@@ -2,6 +2,11 @@
 History
 =======
 
+0.0.5 (2024-02-19)
+------------------
+
+* fix: ensure correct architecture build artifacts are downloaded
+
 0.0.4 (2024-02-01)
 ------------------
 
