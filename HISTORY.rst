@@ -2,6 +2,11 @@
 History
 =======
 
+0.0.6 (2024-06-05)
+------------------
+
+* feat: optionally do not download buildinfo file. `--no-download` flag checks for existence only
+
 0.0.5 (2024-02-19)
 ------------------
 
