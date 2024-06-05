@@ -41,7 +41,13 @@ def _write_build_artifact_to_file(filename, content, message):
 
 
 def get_buildinfo(
-    package_series, package_name, package_version, source_package_query=False, package_architecture="amd64"):
+    package_series,
+    package_name,
+    package_version,
+    source_package_query=False,
+    package_architecture="amd64",
+    download=True,
+):
     """
     Get buildlinfo for a package in the Ubuntu archive.
 
@@ -158,9 +164,9 @@ def get_buildinfo(
         if buildinfo_url is None:
             print(f"**********ERROR: \tNo buildinfo found for {package_name} {package_architecture} version {package_version} in {package_series}. See {binary_build_link} for more details. Source package {binary_build.source_package_name} version {binary_build.source_package_version}.")
         else:
-            pass
-            download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
-                                                binary_build_architecture, package_name, package_version)
+            if download:
+                download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
+                                                    binary_build_architecture, package_name, package_version)
     else:
         print(
             f"**********ERROR: \tNo binary builds found for {package_name} {package_architecture} version {package_version} in {package_series}."
@@ -241,17 +247,24 @@ def download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile
     default="amd64",
     show_default=True,
 )
+@click.option(
+    "--download/--no-download",
+    is_flag=True,
+    show_default=True,
+    default=True,
+    help="Download buildinfo? Setting to False is useful for testing for missing buildinfo files.",
+    required=False,
+)
 @click.pass_context
 def ubuntu_package_buildinfo(
-    ctx, series, package_name, package_version, source_package, logging_level, package_architecture):
-    # type: (Dict, Text, Text,Text, Bool, Text, Optional[Text]) -> None
+    ctx, series, package_name, package_version, source_package, logging_level, package_architecture, download):
+    # type: (Dict, Text, Text,Text, Bool, Text, Text, Bool) -> None
 
     # We log to stderr so that a shell calling this will not have logging
     # output in the $() capture.
     level = logging.getLevelName(logging_level)
     logging.basicConfig(level=level, stream=sys.stderr, format="%(asctime)s [%(levelname)s] %(message)s")
-
-    get_buildinfo(series, package_name, package_version, source_package, package_architecture)
+    get_buildinfo(series, package_name, package_version, source_package, package_architecture, download)
 
 
 if __name__ == "__main__":
