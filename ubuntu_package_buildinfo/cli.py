@@ -110,6 +110,7 @@ def get_buildinfo(
         if len(source_package_publishing_histories):
             # iterate over the source package publishing histories and find the first one with build history.
             # This is because some package are copied from series to series without any rebuilds.
+            source_package_build_for_series = False
             for source_package_publishing_history in source_package_publishing_histories:
                 source_package = source_package_publishing_history
                 source_package_builds = source_package.getBuilds()
@@ -118,17 +119,28 @@ def get_buildinfo(
                     # If builds were not found in the specified series then print a message stating which series
                     # the first source package with published builds was found in.
                     if distro_series.name != package_series:
-                        print(
-                            f"INFO: \tFirst source package with published builds for "
-                            f"{package_name} version {package_version} found in series {distro_series.name}. This occurs when a package is copied from one series to another without any rebuilds."
-                        )
-                    break
+                        source_package_build_for_series = False
+                    else:
+                        # We have found a source package with published builds in the specified series.
+                        # We can break the for loop and continue
+                        source_package_build_for_series = True
+                        break
+            if not source_package_build_for_series:
+                print(
+                    f"INFO: \tFirst source package with published builds for "
+                    f"{package_name} version {package_version} found in series {distro_series.name}. This occurs when a package is copied from one series to another without any rebuilds."
+                )
+
             source_package_builds = source_package.getBuilds()
             # Now find the build for the specified architecture and if it is not found use the amd64 build
             architecture_all_arch_tag = "amd64"
             architecture_all_build = None
             architecture_build = None
             for source_package_build in source_package_builds:
+                if source_package_query:
+                    # if we are querying the source package only then we can break after finding the first build
+                    architecture_build = source_package_build
+                    break
                 if source_package_build.arch_tag == architecture_all_arch_tag:
                     # This will be our fallback if we do not find a build for the specified architecture
                     architecture_all_build = source_package_build
@@ -137,7 +149,7 @@ def get_buildinfo(
                     # if we have found a build for the specified architecture then we can break
                     break
 
-            if architecture_build is None and architecture_all_build is not None:
+            if not source_package_query and architecture_build is None and architecture_all_build is not None:
                 architecture_build = architecture_all_build
                 print(f"INFO: \tNo build found for architecture {package_architecture} using {architecture_all_arch_tag} instead. This will occur if there is no build for the specified architecture and the amd64 architecture build is used instead. - when `Architecture: all` is used for example")
 
@@ -145,7 +157,7 @@ def get_buildinfo(
                 binary_build = architecture_build
                 print(
                     f"INFO: \tFound binary build from source package "
-                    f"{package_name} {package_architecture} version {package_version} in {package_series}."
+                    f"{package_name} {architecture_build.arch_tag} version {package_version} in {package_series}."
                 )
             else:
                 print(
@@ -154,15 +166,16 @@ def get_buildinfo(
 
     if binary_build:
         binary_build_architecture = binary_build.arch_tag
-        if binary_build_architecture != package_architecture:
+        if not source_package_query and binary_build_architecture != package_architecture:
             print(
                 f"INFO: \tThis binary build was an {binary_build_architecture} architecture build which differs from {package_architecture} specified. This is expected and is usually due to `Architecture: all` in the debian/control file."
             )
         changesfile_url = binary_build.changesfile_url
         buildlog_url = binary_build.build_log_url
         buildinfo_url = binary_build.buildinfo_url
-        if buildinfo_url is None:
-            print(f"**********ERROR: \tNo buildinfo found for {package_name} {package_architecture} version {package_version} in {package_series}. See {binary_build_link} for more details. Source package {binary_build.source_package_name} version {binary_build.source_package_version}.")
+        build_web_link = binary_build.web_link
+        if not buildinfo_url:
+            print(f"**********ERROR: \tNo buildinfo found for {package_name} {package_architecture} version {package_version} in {package_series}. See {build_web_link} for more details. Source package {binary_build.source_package_name} version {binary_build.source_package_version}.")
         else:
             if download:
                 download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
