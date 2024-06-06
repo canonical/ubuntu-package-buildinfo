@@ -6,6 +6,7 @@ import logging
 import sys
 
 import click
+import lazr
 
 from launchpadlib.launchpad import Launchpad
 from launchpadlib.uris import service_roots
@@ -113,7 +114,13 @@ def get_buildinfo(
             source_package_build_for_series = False
             for source_package_publishing_history in source_package_publishing_histories:
                 source_package = source_package_publishing_history
-                source_package_builds = source_package.getBuilds()
+                try:
+                    source_package_builds = source_package.getBuilds()
+                except lazr.restfulclient.errors.Unauthorized as unauthorized_error:
+                    print(
+                        f"**********ERROR(Unauthorized): \tUnauthorized to access source package {package_name} {package_version} - {source_package}."
+                    )
+                    raise unauthorized_error
                 if len(source_package_builds):
                     distro_series = launchpad.load(source_package.distro_series_link)
                     # If builds were not found in the specified series then print a message stating which series
@@ -130,8 +137,13 @@ def get_buildinfo(
                     f"INFO: \tFirst source package with published builds for "
                     f"{package_name} version {package_version} found in series {distro_series.name}. This occurs when a package is copied from one series to another without any rebuilds."
                 )
-
-            source_package_builds = source_package.getBuilds()
+            try:
+                source_package_builds = source_package.getBuilds()
+            except lazr.restfulclient.errors.Unauthorized as unauthorized_error:
+                print(
+                    f"**********ERROR(Unauthorized): \tUnauthorized to access source package {package_name} {package_version} - {source_package}."
+                )
+                raise unauthorized_error
             # Now find the build for the specified architecture and if it is not found use the amd64 build
             architecture_all_arch_tag = "amd64"
             architecture_all_build = None
