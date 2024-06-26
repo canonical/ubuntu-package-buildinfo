@@ -3,11 +3,14 @@
 import faulthandler
 import hashlib
 import logging
+import os
 import sys
+import urllib
 
 import click
 import lazr
 
+from launchpadlib.credentials import UnencryptedFileCredentialStore
 from launchpadlib.launchpad import Launchpad
 from launchpadlib.uris import service_roots
 
@@ -48,6 +51,9 @@ def get_buildinfo(
     source_package_query=False,
     package_architecture="amd64",
     download=True,
+    ppa=None,
+    lp_user=None,
+    lp_credentials_store=None
 ):
     """
     Get buildlinfo for a package in the Ubuntu archive.
@@ -56,10 +62,10 @@ def get_buildinfo(
 
     It also verifies that the buildinfo file is correct based on the checksum in the .changes file.
 
-    * First we query the Ubuntu archive for the binary package version in the specified series and pocket.
+    * First we query the Ubuntu archive (or PPA if specified) for the binary package version in the specified series and pocket.
     * If the binary package version is found we download the buildlog, changes file and buildinfo file for the
         binary package version in the specified series.
-    * If the binary package version is not found we query the Ubuntu archive for the source package version in the
+    * If the binary package version is not found we query the Ubuntu archive (or PPA if specified) for the source package version in the
         specified series.
     * If the source package version is found we download the buildlog, changes file and buildinfo file for the
         source package build for the specified achitecture in the specified series.
@@ -68,15 +74,33 @@ def get_buildinfo(
     if f":{package_architecture}" in package_name:
         # strip the architecture from the package name if it is present
         package_name = package_name.replace(f":{package_architecture}", "")
-    # Log in to launchpad annonymously - we use launchpad to find
-    # the package publish time
-    launchpad = Launchpad.login_anonymously(
-        "ubuntu-package-buildinfo", service_root=service_roots["production"], version="devel"
-    )
+
+    if not lp_credentials_store:
+        creds_prefix = os.environ.get("SNAP_USER_COMMON", os.path.expanduser("~"))
+        store = UnencryptedFileCredentialStore(os.path.join(creds_prefix, ".launchpad.credentials"))
+    else:
+        store = UnencryptedFileCredentialStore(lp_credentials_store)
+
+    if lp_user:
+        launchpad = Launchpad.login_with(
+            lp_user,
+            credential_store=store,
+            service_root=service_roots['production'], version='devel')
+    else:
+        # Log in to launchpad annonymously - we use launchpad to find
+        # the package publish time
+        launchpad = Launchpad.login_anonymously(
+            "ubuntu-package-buildinfo",
+            service_root=service_roots['production'], version='devel')
 
     ubuntu = launchpad.distributions["ubuntu"]
 
     archive = ubuntu.main_archive
+
+    if ppa:
+        ppa_owner_and_name = ppa.replace("ppa:", "")
+        ppa_owner, ppa_name = ppa_owner_and_name.split("/")
+        archive = launchpad.people[ppa_owner].getPPAByName(name=ppa_name)
 
     lp_series = ubuntu.getSeries(name_or_version=package_series)
     lp_arch_series = lp_series.getDistroArchSeries(archtag=package_architecture)
@@ -200,9 +224,13 @@ def get_buildinfo(
 
 def download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad, package_architecture,
                                         package_name, package_version):
-    changesfile_resp = launchpad._browser.get(changesfile_url).decode("utf-8", errors="ignore")
-    buildinfo_resp = launchpad._browser.get(buildinfo_url).decode("utf-8", errors="ignore")
-    buildlog_resp = launchpad._browser.get(buildlog_url).decode("utf-8", errors="ignore")
+
+    changesfile_api_url = launchpad._root_uri.append(urllib.parse.urlparse(changesfile_url).path.lstrip('/'))
+    changesfile_resp = launchpad._browser.get(changesfile_api_url).decode('utf-8', errors="ignore")
+    buildinfo_api_url = launchpad._root_uri.append(urllib.parse.urlparse(buildinfo_url).path.lstrip('/'))
+    buildinfo_resp = launchpad._browser.get(buildinfo_api_url).decode("utf-8", errors="ignore")
+    buildlog_api_url = launchpad._root_uri.append(urllib.parse.urlparse(buildlog_url).path.lstrip('/'))
+    buildlog_resp = launchpad._browser.get(buildlog_api_url).decode("utf-8", errors="ignore")
     changes_filename = changesfile_url.split("/")[-1]
     changes_msg = f"INFO: \tchanges written to {changes_filename}"
     _write_build_artifact_to_file(changes_filename, changesfile_resp, changes_msg)
@@ -280,16 +308,51 @@ def download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile
     help="Download buildinfo? Setting to False is useful for testing for missing buildinfo files.",
     required=False,
 )
+@click.option(
+    "--ppa",
+    required=False,
+    type=click.STRING,
+    help="Additional PPAs that you wish to query for buildinfo - If specified - this is queried instead of the main Ubuntu archive."
+    "Expected format is "
+    "ppa:'%LAUNCHPAD_USERNAME%/%PPA_NAME%' eg. ppa:philroche/cloud-init",
+)
+@click.option(
+    "--launchpad-user",
+    "lp_user",
+    required=False,
+    type=click.STRING,
+    help="Launchpad username to use when querying PPAs. This is important if "
+         "you are querying PPAs that are not public.",
+    default=None
+)
+@click.option(
+    "--launchpad-credentials-store",
+    "lp_credentials_store",
+    envvar="LP_CREDENTIALS_STORE",
+    required=False,
+    help="An optional path to an already configured launchpad credentials store.",
+    default=None,
+)
 @click.pass_context
 def ubuntu_package_buildinfo(
-    ctx, series, package_name, package_version, source_package, logging_level, package_architecture, download):
-    # type: (Dict, Text, Text,Text, Bool, Text, Text, Bool) -> None
+    ctx, series, package_name, package_version, source_package, logging_level, package_architecture, download, ppa,
+    lp_user, lp_credentials_store
+):
+    # type: (Dict, Text, Text,Text, Bool, Text, Text, Bool, Text, Optional[Text], Optional[Text]) -> None
 
     # We log to stderr so that a shell calling this will not have logging
     # output in the $() capture.
     level = logging.getLevelName(logging_level)
     logging.basicConfig(level=level, stream=sys.stderr, format="%(asctime)s [%(levelname)s] %(message)s")
-    get_buildinfo(series, package_name, package_version, source_package, package_architecture, download)
+    get_buildinfo(series,
+                  package_name,
+                  package_version,
+                  source_package,
+                  package_architecture,
+                  download,
+                  ppa,
+                  lp_user,
+                  lp_credentials_store)
 
 
 if __name__ == "__main__":
