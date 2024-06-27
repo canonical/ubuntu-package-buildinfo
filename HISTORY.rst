@@ -2,6 +2,11 @@
 History
 =======
 
+0.0.8 (2024-06-27)
+------------------
+
+* feat: Add support for skipping download and verification of buildinfo file it is already exists
+
 0.0.7 (2024-06-26)
 ------------------
 

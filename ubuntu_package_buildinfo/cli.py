@@ -75,6 +75,12 @@ def get_buildinfo(
         # strip the architecture from the package name if it is present
         package_name = package_name.replace(f":{package_architecture}", "")
 
+    # Is there a .buildinfo file already downloaded for this package name, version and srchitecture combination?
+    predicted_buildinfo_filename = f"{package_name}_{package_version}_{package_architecture}.buildinfo"
+    if os.path.exists(predicted_buildinfo_filename):
+        print(f"INFO: \t{predicted_buildinfo_filename} already exists. Skipping download.")
+        return
+
     if not lp_credentials_store:
         creds_prefix = os.environ.get("SNAP_USER_COMMON", os.path.expanduser("~"))
         store = UnencryptedFileCredentialStore(os.path.join(creds_prefix, ".launchpad.credentials"))
