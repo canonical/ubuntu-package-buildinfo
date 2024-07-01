@@ -179,10 +179,6 @@ def get_buildinfo(
             architecture_all_build = None
             architecture_build = None
             for source_package_build in source_package_builds:
-                if source_package_query:
-                    # if we are querying the source package only then we can break after finding the first build
-                    architecture_build = source_package_build
-                    break
                 if source_package_build.arch_tag == architecture_all_arch_tag:
                     # This will be our fallback if we do not find a build for the specified architecture
                     architecture_all_build = source_package_build
