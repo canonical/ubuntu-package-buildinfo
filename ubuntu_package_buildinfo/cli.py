@@ -199,7 +199,6 @@ def get_buildinfo(
                 )
 
     if binary_build:
-        print(binary_build)
         binary_build_architecture = binary_build.arch_tag
         if not source_package_query and binary_build_architecture != package_architecture:
             print(
