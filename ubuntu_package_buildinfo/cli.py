@@ -10,6 +10,7 @@ import urllib
 import click
 import lazr
 
+from collections import defaultdict
 from launchpadlib.credentials import UnencryptedFileCredentialStore
 from launchpadlib.launchpad import Launchpad
 from launchpadlib.uris import service_roots
@@ -142,67 +143,63 @@ def get_buildinfo(
             # iterate over the source package publishing histories and find the first one with build history.
             # This is because some package are copied from series to series without any rebuilds.
             source_package_build_for_series = False
+            distro_series = None
+            # create an ordereddict to store the builds for each source package with a default value of an empty list
+            all_source_package_builds = defaultdict(list)
             for source_package_publishing_history in source_package_publishing_histories:
                 source_package = source_package_publishing_history
+                distro_series = launchpad.load(source_package.distro_series_link)
+                distro_series_name = distro_series.name
                 try:
                     source_package_builds = source_package.getBuilds()
+                    all_source_package_builds[distro_series_name].extend(source_package_builds)
                 except lazr.restfulclient.errors.Unauthorized as unauthorized_error:
                     print(
                         f"**********ERROR(Unauthorized): \tUnauthorized to access source package {package_name} {package_version} - {source_package}."
                     )
                     raise unauthorized_error
-                if len(source_package_builds):
-                    distro_series = launchpad.load(source_package.distro_series_link)
-                    # If builds were not found in the specified series then print a message stating which series
-                    # the first source package with published builds was found in.
-                    if distro_series.name != package_series:
-                        source_package_build_for_series = False
-                    else:
-                        # We have found a source package with published builds in the specified series.
-                        # We can break the for loop and continue
-                        source_package_build_for_series = True
-                        break
-            if not source_package_build_for_series:
-                print(
-                    f"INFO: \tFirst source package with published builds for "
-                    f"{package_name} version {package_version} found in series {distro_series.name}. This occurs when a package is copied from one series to another without any rebuilds."
-                )
-            try:
-                source_package_builds = source_package.getBuilds()
-            except lazr.restfulclient.errors.Unauthorized as unauthorized_error:
-                print(
-                    f"**********ERROR(Unauthorized): \tUnauthorized to access source package {package_name} {package_version} - {source_package}."
-                )
-                raise unauthorized_error
+
             # Now find the build for the specified architecture and if it is not found use the amd64 build
             architecture_all_arch_tag = "amd64"
             architecture_all_build = None
             architecture_build = None
-            for source_package_build in source_package_builds:
-                if source_package_build.arch_tag == architecture_all_arch_tag:
-                    # This will be our fallback if we do not find a build for the specified architecture
-                    architecture_all_build = source_package_build
-                if source_package_build.arch_tag == package_architecture:
-                    architecture_build = source_package_build
-                    # if we have found a build for the specified architecture then we can break
-                    break
+            build_series_name = None
+            architecture_all_build_series_name = None
+            for source_package_build_series_name, source_package_build_list in all_source_package_builds.items():
+                for source_package_build in source_package_build_list:
+                    if source_package_build.arch_tag == architecture_all_arch_tag:
+                        # This will be our fallback if we do not find a build for the specified architecture
+                        architecture_all_build = source_package_build
+                        architecture_all_build_series_name = source_package_build_series_name
+                    if source_package_build.arch_tag == package_architecture:
+                        architecture_build = source_package_build
+                        build_series_name = source_package_build_series_name
+                        # if we have found a build for the specified architecture then we can break
+                        break
 
             if not source_package_query and architecture_build is None and architecture_all_build is not None:
                 architecture_build = architecture_all_build
+                build_series_name = architecture_all_build_series_name
                 print(f"INFO: \tNo build found for architecture {package_architecture} using {architecture_all_arch_tag} instead. This will occur if there is no build for the specified architecture and the amd64 architecture build is used instead. - when `Architecture: all` is used for example")
 
             if architecture_build is not None:
                 binary_build = architecture_build
                 print(
                     f"INFO: \tFound binary build from source package "
-                    f"{package_name} {architecture_build.arch_tag} version {package_version} in {package_series}."
+                    f"{package_name} {architecture_build.arch_tag} version {package_version} in {build_series_name}."
                 )
+                if build_series_name != package_series:
+                    print(
+                        f"INFO: \tFirst source package with published {package_architecture} builds for "
+                        f"{package_name} version {package_version} found in series {build_series_name}. This occurs when a package is copied from one series to another without any rebuilds."
+                    )
             else:
                 print(
-                    f"**********WARNING: \tNo binary builds found for source package {package_name} {package_architecture} version {package_version} in {package_series}."
+                    f"**********WARNING: \tNo binary builds found for source package {package_name} {package_architecture} version {package_version} in any series including {package_series}."
                 )
 
     if binary_build:
+        print(binary_build)
         binary_build_architecture = binary_build.arch_tag
         if not source_package_query and binary_build_architecture != package_architecture:
             print(
