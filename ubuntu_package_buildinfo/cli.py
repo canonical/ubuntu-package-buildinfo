@@ -137,6 +137,25 @@ def get_buildinfo(
                 f"**********WARNING: \tNo binary builds found for binary {package_name} {package_architecture} version {package_version} in {package_series}. Searching for source package of the same name..."
             )
 
+        if binary_build is not None:
+            # Check whether the binary build is from this series or was binary copied from another series
+            source_publication_link = binary_build.current_source_publication_link
+            if source_publication_link:
+                try:
+                    source_package_publishing_history = launchpad.load(source_publication_link)
+                    distro_series_link = source_package_publishing_history.distro_series_link
+                    distro_series = launchpad.load(distro_series_link)
+                    package_series = distro_series.name
+                    if package_series != lp_series.name:
+                        print(
+                            f"INFO: \tBinary build found in series {package_series} which differs from {lp_series.name}. This occurs when a package is copied from one series to another without any rebuilds."
+                        )
+                except lazr.restfulclient.errors.Unauthorized as unauthorized_error:
+                    print(
+                        f"**********ERROR(Unauthorized): \tUnauthorized to access binary package {package_name} {package_version} - {binary_build}."
+                    )
+                    raise unauthorized_error
+
     if source_package_query or binary_build is None:
         source_package_publishing_histories = _get_source_package_publishing_histories(archive, package_version, package_name)
         if len(source_package_publishing_histories):
@@ -212,6 +231,13 @@ def get_buildinfo(
             print(f"**********ERROR: \tNo buildinfo found for {package_name} {package_architecture} version {package_version} in {package_series}. See {build_web_link} for more details. Source package {binary_build.source_package_name} version {binary_build.source_package_version}.")
         else:
             if download:
+                # These logs are parsed by internal Canonical tools
+                print(
+                    f"DEBUG: \tbinary build URL: {binary_build}"
+                    f"\nDEBUG: \tbuildinfo URL: {buildinfo_url}"
+                    f"\nDEBUG: \tbuildlog URL: {buildlog_url}"
+                    f"\nDEBUG: \tchangesfile URL: {changesfile_url}"
+                )
                 download_and_verify_build_artifacts(buildinfo_url, buildlog_url, changesfile_url, launchpad,
                                                     binary_build_architecture, package_name, package_version)
     else:
